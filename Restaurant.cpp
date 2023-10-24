@@ -45,12 +45,12 @@ public:
             node2->joinOrder = tmpOrder;
         }
 
-        int segmentIS(int n, int k) {
+        int segmentIS(int startIdx, int n, int k) {
             int swapCnt = 0;
             for (int i = k; i < n; i += k) {
                 for (int j = i; j >= k; j -= k) {
-                    Node* pre_jNode = getAt(j - k);
-                    Node* jNode = getAt(j);
+                    Node* pre_jNode = getAt(startIdx + j - k);
+                    Node* jNode = getAt(startIdx + j);
 
                     if (jNode->operator>(pre_jNode)) {
                         // swap nodes
@@ -149,18 +149,35 @@ public:
             int swapCnt = 0;
             for (int i = n / 2; i > 2; i = i / 2) {
                 for (int j = 0; j < i; j++) {
-                    swapCnt += segmentIS(n - j, i);
+                    swapCnt += segmentIS(j, n - j, i);
                 }
             }
-            swapCnt += segmentIS(n, 1);
+            swapCnt += segmentIS(0, n, 1);
             return swapCnt;
+        }
+
+        void domainExpansion(Node* p, imp_res* restaurant, int sign) {
+            if (p == nullptr) return;
+            customer* toDel;
+            if (sign * p->data->energy > 0) {
+                toDel = p->data;
+                if (p->inTable) {
+                    restaurant->table->remove(toDel);
+                } else {
+                    restaurant->waitline->removeItem(toDel);
+                }
+                domainExpansion(p->next, restaurant, sign);
+                removeItem(toDel); // remove in timeline
+                toDel->print();
+                delete toDel;
+            } else domainExpansion(p->next, restaurant, sign);
         }
 
         void printInfo() {
             if (!count) return;
             Node* tmp = head;
             while (tmp != nullptr) {
-                cout << tmp->data->name << "-" << tmp->data->energy << "\n";
+                tmp->data->print();
                 tmp = tmp->next;
             }
         }
@@ -273,21 +290,62 @@ public:
             count--;
         }
 
+        void reverse(int sign) {
+            customer* head = X;
+            customer* tail = head->next;
+            int cnt = 2;
+            customer* save = X;
+
+            while (cnt <= count && head != tail) {
+                if (sign * head->energy < 0) {
+                    head = head->prev;
+                    cnt++;
+                }
+
+                else if (sign * tail->energy < 0) {
+                    tail = tail->next;
+                    cnt++;
+                }
+
+                else {
+                    customer* tmp = head->next;
+                    head->next = tail->next;
+                    tail->next = tmp;
+
+                    head->next->prev = head;
+                    tail->next->prev = tail;
+
+                    tmp = head->prev;
+                    head->prev = tail->prev;
+                    tail->prev = tmp;
+
+                    head->prev->next = head;
+                    tail->prev->next = tail;
+
+                    tmp = head;
+                    head = tail;
+                    tail = tmp;
+
+                    if (head == X) X = tail;
+                    else if (tail == X) X = head;
+
+                    head = head->prev;
+                    tail = tail->next;
+                    cnt += 2;
+                }
+            }
+
+            if (sign < 0) reverse(-sign);
+            X = save;
+        }
+
         void printInfo(int clockWise) {
             if (!count) return;
-            cout << X->name << "-" << X->energy << "\n";
-            if (clockWise) {
-                customer* tmp = X->next;
-                while (tmp != X) {
-                    cout << tmp->name << "-" << tmp->energy << "\n";
-                    tmp = tmp->next;
-                }
-            } else {
-                customer* tmp = X->prev;
-                while (tmp != X) {
-                    cout << tmp->name << "-" << tmp->energy << "\n";
-                    tmp = tmp->prev;
-                }
+            customer* tmp = X;
+            for (int i = 0; i < count; i++) {
+                tmp->print();
+                if (clockWise) tmp = tmp->next;
+                else tmp = tmp->prev;
             }
         }
     };
@@ -361,14 +419,81 @@ public:
     }
 
     void REVERSAL() {
-        cout << "reversal" << endl;
+        if (table->count <= 2) return;
+        // reverse negative
+        table->reverse(-1);
     }
+
     void UNLIMITED_VOID() {
-        cout << "unlimited_void" << endl;
+        if (table->count < 4) return;
+        int minSum = INT32_MAX;
+        int maxLen = 0;
+        int tmpSum;
+        customer* pI = table->X;
+        customer *start, *end;
+
+        for (int i = 1; i <= table->count; i++) {
+            customer* pJ = pI;
+            tmpSum = 0;
+            for (int j = 1; j <= table->count; j++) {
+                tmpSum += pJ->energy;
+                if (j >= 4) {
+                    if (tmpSum == minSum) {
+                        if (maxLen <= j) {
+                            maxLen = j;
+                            start = pI;
+                            end = pJ;
+                        }
+                    } else if (tmpSum < minSum) {
+                        minSum = tmpSum;
+                        maxLen = j;
+                        start = pI;
+                        end = pJ;
+                    }
+                }
+                pJ = pJ->next;
+            }
+            pI = pI->next;
+        }
+
+        customer* tmp = start->next;
+        customer* minCus = start;
+        for (int i=1; i<maxLen; i++) {
+            if (tmp->energy < minCus->energy) minCus = tmp;
+        }
+
+        tmp = minCus;
+        for (int i=0; i<maxLen; i++) {
+            tmp->print();
+            if (tmp == end) tmp = start;
+            else tmp = tmp->next;
+        }
     }
+
     void DOMAIN_EXPANSION() {
-        cout << "domain_expansion" << endl;
+        if (!timeline->count) return;
+
+        int Epos = 0;
+        int E = 0;
+        Queue::Node* tmp = timeline->head;
+        while (tmp != nullptr) {
+            if (tmp->data->energy > 0) Epos += tmp->data->energy;
+            E += tmp->data->energy;
+        }
+
+        // remove OL
+        if (Epos >= abs(E)) timeline->domainExpansion(timeline->head, this, -1);
+        else timeline->domainExpansion(timeline->head, this, 1);
+
+        // add cus to table
+        while (table->count < MAXSIZE && waitline->count) {
+            customer* toMove = waitline->front()->data;
+            table->add(toMove);
+            waitline->dequeue();
+            (timeline->findItem(toMove))->inTable = 1; // moved to table
+        }
     }
+
     void LIGHT(int num) {
         if (num == 0) waitline->printInfo();
         else if (num > 0) table->printInfo(true);
