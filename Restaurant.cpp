@@ -33,7 +33,6 @@ public:
         Node* head;
         Node* tail;
         int timeStamp;
-        friend class imp_res;
 
         void swap(Node* node1, Node* node2) {
             customer* tmpCus = node1->data;
@@ -65,11 +64,7 @@ public:
     public:
         Queue()
             : count(0), head(nullptr), tail(nullptr), timeStamp(0) {}
-        ~Queue() {
-            while (count) {
-                dequeue();
-            }
-        }
+        ~Queue() {}
 
         int getSize() {
             return count;
@@ -214,11 +209,8 @@ public:
     public:
         Table()
             : count(0), X(nullptr) {}
-        ~Table() {
-            while (count) {
-                remove(X);
-            }
-        }
+
+        ~Table() {}
 
         void add(customer* cus) {
             if (!count) {
@@ -284,7 +276,7 @@ public:
             tmp->next->prev = tmp->prev;
             tmp->prev = nullptr;
             tmp->next = nullptr;
-            delete tmp;
+            // delete tmp; isolate but not free yet
 
             if (!count) X = nullptr;
             count--;
@@ -294,7 +286,7 @@ public:
             customer* head = X;
             customer* tail = head->next;
             int cnt = 2;
-            customer* save = X;
+            customer* saveInit = X;
 
             while (cnt <= count && head != tail) {
                 if (sign * head->energy < 0) {
@@ -336,7 +328,7 @@ public:
             }
 
             if (sign < 0) reverse(-sign);
-            X = save;
+            X = saveInit;
         }
 
         void printInfo(int clockWise) {
@@ -358,6 +350,29 @@ public:
     imp_res()
         : table(new Table), waitline(new Queue), timeline(new Queue) {}
 
+    ~imp_res() {
+        // loop timeline: remove
+        while (timeline->getSize()) {
+            timeline->removeItem(timeline->front()->data);
+        }
+
+        // loop waitline: remove, free
+        while (waitline->getSize()) {
+            customer* toDel  = waitline->front()->data;
+            waitline->removeItem(toDel);
+            delete toDel;
+        }
+
+        // loop table: remove, free
+        while (table->count) {
+            customer* toDel = table->X;
+            table->remove(toDel);
+            delete toDel;
+        }
+
+        delete table, waitline, timeline;
+    }
+
     void RED(string name, int energy) {
         if (energy == 0 || timeline->findName(name) || timeline->getSize() == 2 * MAXSIZE) return; // deny service
 
@@ -376,7 +391,7 @@ public:
 
     void BLUE(int num) {
         if (!num) return;
-        Queue::Node* tmp = timeline->head;
+        Queue::Node* tmp = timeline->front();
         while (num && tmp != nullptr) {
             if (tmp->inTable) {
                 customer* toDel = tmp->data;
@@ -389,7 +404,7 @@ public:
         }
 
         // add cus to table
-        while (table->count < MAXSIZE && waitline->count) {
+        while (table->count < MAXSIZE && waitline->getSize()) {
             customer* toMove = waitline->front()->data;
             table->add(toMove);
             waitline->dequeue();
@@ -398,11 +413,11 @@ public:
     }
 
     void PURPLE() {
-        if (!waitline->count) return;
-        Queue::Node* tmp = waitline->head;
+        if (!waitline->getSize()) return;
+        Queue::Node* tmp = waitline->front();
         Queue::Node* maxE_N = tmp;
         int maxE_Id = 0;
-        for (int i = 1; i < waitline->count; i++) {
+        for (int i = 1; i < waitline->getSize(); i++) {
             if (abs(tmp->data->energy) == abs(maxE_N->data->energy)) {
                 if (tmp->joinOrder > maxE_N->joinOrder) {
                     maxE_N = tmp;
@@ -458,12 +473,12 @@ public:
 
         customer* tmp = start->next;
         customer* minCus = start;
-        for (int i=1; i<maxLen; i++) {
+        for (int i = 1; i < maxLen; i++) {
             if (tmp->energy < minCus->energy) minCus = tmp;
         }
 
         tmp = minCus;
-        for (int i=0; i<maxLen; i++) {
+        for (int i = 0; i < maxLen; i++) {
             tmp->print();
             if (tmp == end) tmp = start;
             else tmp = tmp->next;
@@ -471,22 +486,24 @@ public:
     }
 
     void DOMAIN_EXPANSION() {
-        if (!timeline->count) return;
+        if (!timeline->getSize()) return;
 
         int Epos = 0;
         int E = 0;
-        Queue::Node* tmp = timeline->head;
+        Queue::Node* tmp = timeline->front();
         while (tmp != nullptr) {
             if (tmp->data->energy > 0) Epos += tmp->data->energy;
             E += tmp->data->energy;
         }
 
         // remove OL
-        if (Epos >= abs(E)) timeline->domainExpansion(timeline->head, this, -1);
-        else timeline->domainExpansion(timeline->head, this, 1);
+        if (Epos >= abs(E)) timeline->domainExpansion(timeline->front(), this, -1);
+
+        // remove CTS
+        else timeline->domainExpansion(timeline->front(), this, 1);
 
         // add cus to table
-        while (table->count < MAXSIZE && waitline->count) {
+        while (table->count < MAXSIZE && waitline->getSize()) {
             customer* toMove = waitline->front()->data;
             table->add(toMove);
             waitline->dequeue();

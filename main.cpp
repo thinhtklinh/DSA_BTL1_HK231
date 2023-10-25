@@ -43,6 +43,7 @@ void simulate(string filename, imp_res* r)
     	{
                 ss >> num;
     			r->LIGHT(stoi(num));
+				cout<<"-----------------------------------\n";
     	}
     }
 }
@@ -52,7 +53,7 @@ int main(int argc, char* argv[]) {
     //	return 1;
 	//  string fileName = argv[1];
 	imp_res* r = new imp_res();
-	string fileName = "test.txt";
+	string fileName = "test2.txt";
     simulate(fileName, r);
   	delete r;
 	return 0;

@@ -1,0 +1,19 @@
+MAXSIZE 25
+RED bg -8
+LIGHT 0
+RED ci -1
+LIGHT 0
+RED tf 3
+LIGHT 1
+
+RED dy 6
+LIGHT -1
+
+RED nv -4
+LIGHT 1
+
+RED ap -7
+LIGHT -1
+
+RED we 1
+LIGHT 1
