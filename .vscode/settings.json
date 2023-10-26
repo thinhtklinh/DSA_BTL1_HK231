@@ -4,6 +4,8 @@
         "xmemory": "cpp",
         "xutility": "cpp",
         "cstdlib": "cpp",
-        "iostream": "cpp"
+        "iostream": "cpp",
+        "string": "cpp",
+        "iterator": "cpp"
     }
 }

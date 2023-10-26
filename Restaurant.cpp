@@ -62,8 +62,7 @@ public:
         }
 
     public:
-        Queue()
-            : count(0), head(nullptr), tail(nullptr), timeStamp(0) {}
+        Queue() : count(0), head(nullptr), tail(nullptr), timeStamp(0) {}
         ~Queue() {}
 
         int getSize() {
@@ -89,10 +88,12 @@ public:
                     Node* toDel = tmp->next;
                     tmp->next = tmp->next->next;
                     toDel->next = nullptr;
+                    // toDel->data = nullptr; // ??
                     delete toDel;
                     count--;
                     break;
                 }
+                else tmp = tmp->next;
             }
         }
 
@@ -100,12 +101,13 @@ public:
             if (!count) {
                 head = new Node(cus, timeStamp++, nullptr, inTable);
                 tail = head;
-            } else if (count == MAXSIZE) return; // queue deny
+            }
 
             else {
                 tail->next = new Node(cus, timeStamp++, nullptr, inTable);
                 tail = tail->next;
             }
+            count++;
         }
 
         Node* front() {
@@ -161,8 +163,9 @@ public:
                 } else {
                     restaurant->waitline->removeItem(toDel);
                 }
-                domainExpansion(p->next, restaurant, sign);
+                p = p->next;
                 removeItem(toDel); // remove in timeline
+                domainExpansion(p, restaurant, sign);
                 toDel->print();
                 delete toDel;
             } else domainExpansion(p->next, restaurant, sign);
@@ -207,9 +210,7 @@ public:
         }
 
     public:
-        Table()
-            : count(0), X(nullptr) {}
-
+        Table() : count(0), X(nullptr) {}
         ~Table() {}
 
         void add(customer* cus) {
@@ -263,23 +264,18 @@ public:
 
         void remove(customer* cus) {
             if (!count) return;
+            
+            if (cus->energy > 0) X = cus->next;
+            else X = cus->prev;
 
-            customer* tmp = X;
-            for (int i = 0; i < count; i++) {
-                if (tmp == cus) break;
-                tmp = tmp->next;
-            }
-            if (tmp->energy > 0) X = X->next;
-            else X = X->prev;
-
-            tmp->prev->next = tmp->next;
-            tmp->next->prev = tmp->prev;
-            tmp->prev = nullptr;
-            tmp->next = nullptr;
+            cus->prev->next = cus->next;
+            cus->next->prev = cus->prev;
+            cus->prev = nullptr;
+            cus->next = nullptr;
             // delete tmp; isolate but not free yet
 
-            if (!count) X = nullptr;
             count--;
+            if (!count) X = nullptr;
         }
 
         void reverse(int sign) {
@@ -370,11 +366,13 @@ public:
             delete toDel;
         }
 
-        delete table, waitline, timeline;
+        delete table;
+        delete waitline;
+        delete timeline;
     }
 
     void RED(string name, int energy) {
-        if (energy == 0 || timeline->findName(name) || timeline->getSize() == 2 * MAXSIZE) return; // deny service
+        if (energy == 0 || timeline->findName(name) || waitline->getSize() == MAXSIZE) return; // deny service
 
         customer* newCus = new customer(name, energy, nullptr, nullptr);
 
@@ -417,6 +415,7 @@ public:
         Queue::Node* tmp = waitline->front();
         Queue::Node* maxE_N = tmp;
         int maxE_Id = 0;
+        tmp = tmp->next;
         for (int i = 1; i < waitline->getSize(); i++) {
             if (abs(tmp->data->energy) == abs(maxE_N->data->energy)) {
                 if (tmp->joinOrder > maxE_N->joinOrder) {
@@ -429,7 +428,7 @@ public:
             }
             tmp = tmp->next;
         }
-
+        
         BLUE(waitline->shellSort(maxE_Id + 1) % MAXSIZE);
     }
 
@@ -475,6 +474,7 @@ public:
         customer* minCus = start;
         for (int i = 1; i < maxLen; i++) {
             if (tmp->energy < minCus->energy) minCus = tmp;
+            tmp = tmp->next;
         }
 
         tmp = minCus;
@@ -489,15 +489,16 @@ public:
         if (!timeline->getSize()) return;
 
         int Epos = 0;
-        int E = 0;
+        int Eneg = 0;
         Queue::Node* tmp = timeline->front();
         while (tmp != nullptr) {
             if (tmp->data->energy > 0) Epos += tmp->data->energy;
-            E += tmp->data->energy;
+            else Eneg += tmp->data->energy;
+            tmp = tmp->next;
         }
 
         // remove OL
-        if (Epos >= abs(E)) timeline->domainExpansion(timeline->front(), this, -1);
+        if (Epos >= abs(Eneg)) timeline->domainExpansion(timeline->front(), this, -1);
 
         // remove CTS
         else timeline->domainExpansion(timeline->front(), this, 1);
